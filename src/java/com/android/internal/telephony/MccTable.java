@@ -23,7 +23,6 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.RemoteException;
 import android.os.SystemProperties;
-import android.telephony.SubscriptionManager;
 import android.text.TextUtils;
 import android.util.Slog;
 
@@ -397,12 +396,6 @@ public final class MccTable {
         }
 
         return locale;
-    }
-
-    private static boolean isInvalidOperatorNumeric(String operatorNumeric) {
-        return operatorNumeric == null
-                || operatorNumeric.length() < 5
-                || operatorNumeric.startsWith("000");
     }
 
     static {

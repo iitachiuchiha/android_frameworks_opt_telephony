@@ -95,7 +95,6 @@ public class UiccCardApplication {
     private boolean mDestroyed;//set to true once this App is commanded to be disposed of.
 
     private RegistrantList mReadyRegistrants = new RegistrantList();
-    private RegistrantList mDetectedRegistrants = new RegistrantList();
     private RegistrantList mPinLockedRegistrants = new RegistrantList();
     private RegistrantList mNetworkLockedRegistrants = new RegistrantList();
 
@@ -160,7 +159,7 @@ public class UiccCardApplication {
             }
 
             if (mPersoSubState != oldPersoSubState &&
-                    isPersoLocked()) {
+                    mPersoSubState == PersoSubState.PERSOSUBSTATE_SIM_NETWORK) {
                 notifyNetworkLockedRegistrantsIfNeeded(null);
             }
 
@@ -174,7 +173,6 @@ public class UiccCardApplication {
                 }
                 notifyPinLockedRegistrantsIfNeeded(null);
                 notifyReadyRegistrantsIfNeeded(null);
-                notifyDetectedRegistrantsIfNeeded(null);
             }
         }
     }
@@ -443,20 +441,6 @@ public class UiccCardApplication {
         }
     }
 
-    public void registerForDetected(Handler h, int what, Object obj) {
-        synchronized (mLock) {
-            Registrant r = new Registrant(h, what, obj);
-            mDetectedRegistrants.add(r);
-            notifyDetectedRegistrantsIfNeeded(r);
-        }
-    }
-
-    public void unregisterForDetected(Handler h) {
-        synchronized (mLock) {
-            mDetectedRegistrants.remove(h);
-        }
-    }
-
     /**
      * Notifies handler of any transition into State.isPinLocked()
      */
@@ -523,26 +507,6 @@ public class UiccCardApplication {
      *
      * @param r Registrant to be notified. If null - all registrants will be notified
      */
-    private void notifyDetectedRegistrantsIfNeeded(Registrant r) {
-        if (mDestroyed) {
-            return;
-        }
-        if (mAppState == AppState.APPSTATE_DETECTED) {
-            if (r == null) {
-                if (DBG) log("Notifying registrants: DETECTED");
-                mDetectedRegistrants.notifyRegistrants();
-            } else {
-                if (DBG) log("Notifying 1 registrant: DETECTED");
-                r.notifyRegistrant(new AsyncResult(null, null, null));
-            }
-        }
-    }
-
-    /**
-     * Notifies specified registrant, assume mLock is held.
-     *
-     * @param r Registrant to be notified. If null - all registrants will be notified
-     */
     private void notifyPinLockedRegistrantsIfNeeded(Registrant r) {
         if (mDestroyed) {
             return;
@@ -577,14 +541,13 @@ public class UiccCardApplication {
         }
 
         if (mAppState == AppState.APPSTATE_SUBSCRIPTION_PERSO &&
-                isPersoLocked()) {
-            AsyncResult ar = new AsyncResult(null, mPersoSubState.ordinal(), null);
+                mPersoSubState == PersoSubState.PERSOSUBSTATE_SIM_NETWORK) {
             if (r == null) {
                 if (DBG) log("Notifying registrants: NETWORK_LOCKED");
-                mNetworkLockedRegistrants.notifyRegistrants(ar);
+                mNetworkLockedRegistrants.notifyRegistrants();
             } else {
                 if (DBG) log("Notifying 1 registrant: NETWORK_LOCED");
-                r.notifyRegistrant(ar);
+                r.notifyRegistrant(new AsyncResult(null, null, null));
             }
         }
     }
@@ -676,17 +639,6 @@ public class UiccCardApplication {
     public IccRecords getIccRecords() {
         synchronized (mLock) {
             return mIccRecords;
-        }
-    }
-
-    public boolean isPersoLocked() {
-        switch (mPersoSubState) {
-            case PERSOSUBSTATE_UNKNOWN:
-            case PERSOSUBSTATE_IN_PROGRESS:
-            case PERSOSUBSTATE_READY:
-                return false;
-            default:
-                return true;
         }
     }
 

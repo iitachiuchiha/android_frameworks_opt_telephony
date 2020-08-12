@@ -29,12 +29,10 @@ import android.os.Looper;
 import android.os.Message;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.Rlog;
-import android.telephony.TelephonyManager;
 import android.telephony.data.ApnSetting;
 import android.telephony.data.ApnSetting.ApnType;
 import android.util.LocalLog;
 
-import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneSwitcher;
 import com.android.internal.telephony.SubscriptionController;
@@ -88,11 +86,8 @@ public class TelephonyNetworkFactory extends NetworkFactory {
     private final Handler mInternalHandler;
 
 
-    private static final int PRIMARY_SLOT = 0;
-    private static final int SECONDARY_SLOT = 1;
-
     public TelephonyNetworkFactory(SubscriptionMonitor subscriptionMonitor, Looper looper,
-                                   Phone phone, PhoneSwitcher phoneSwitcher) {
+                                   Phone phone) {
         super(looper, phone.getContext(), "TelephonyNetworkFactory[" + phone.getPhoneId()
                 + "]", null);
         mPhone = phone;
@@ -104,7 +99,7 @@ public class TelephonyNetworkFactory extends NetworkFactory {
         setCapabilityFilter(makeNetworkFilter(mSubscriptionController, mPhone.getPhoneId()));
         setScoreFilter(TELEPHONY_NETWORK_SCORE);
 
-        mPhoneSwitcher = phoneSwitcher;
+        mPhoneSwitcher = PhoneSwitcher.getInstance();
         mSubscriptionMonitor = subscriptionMonitor;
         LOG_TAG = "TelephonyNetworkFactory[" + mPhone.getPhoneId() + "]";
 
@@ -253,7 +248,7 @@ public class TelephonyNetworkFactory extends NetworkFactory {
                 requestNetworkInternal(networkRequest, DcTracker.REQUEST_TYPE_NORMAL,
                         getTransportTypeFromNetworkRequest(networkRequest), null);
             } else if (action == ACTION_RELEASE) {
-                releaseNetworkInternal(networkRequest, DcTracker.RELEASE_TYPE_NORMAL,
+                releaseNetworkInternal(networkRequest, DcTracker.RELEASE_TYPE_DETACH,
                         getTransportTypeFromNetworkRequest(networkRequest));
             }
 
@@ -281,22 +276,8 @@ public class TelephonyNetworkFactory extends NetworkFactory {
         msg.sendToTarget();
     }
 
-    private boolean isNetworkCapabilityEims(NetworkRequest networkRequest) {
-        return networkRequest.networkCapabilities.hasCapability(
-            android.net.NetworkCapabilities.NET_CAPABILITY_EIMS);
-    }
-
-    private boolean isSimPresentInSecondarySlot() {
-        return TelephonyManager.getDefault().hasIccCard(SECONDARY_SLOT);
-    }
-
     private void onNeedNetworkFor(Message msg) {
         NetworkRequest networkRequest = (NetworkRequest) msg.obj;
-        if (networkRequest.type != NetworkRequest.Type.REQUEST &&
-                 networkRequest.type != NetworkRequest.Type.BACKGROUND_REQUEST) {
-           logl("Skip non REQUEST/BACKGROUND_REQUEST type request: " + networkRequest);
-           return;
-        }
         boolean shouldApply = mPhoneSwitcher.shouldApplyNetworkRequest(
                 networkRequest, mPhone.getPhoneId());
 
@@ -321,9 +302,6 @@ public class TelephonyNetworkFactory extends NetworkFactory {
 
     private void onReleaseNetworkFor(Message msg) {
         NetworkRequest networkRequest = (NetworkRequest) msg.obj;
-        if (!mNetworkRequests.containsKey(networkRequest)) {
-            return;
-        }
         boolean applied = mNetworkRequests.get(networkRequest)
                 != AccessNetworkConstants.TRANSPORT_TYPE_INVALID;
 
@@ -345,7 +323,6 @@ public class TelephonyNetworkFactory extends NetworkFactory {
         if (mTransportManager.getCurrentTransport(apnType) == targetTransport) {
             log("APN type " + ApnSetting.getApnTypeString(apnType) + " is already on "
                     + AccessNetworkConstants.transportTypeToString(targetTransport));
-            handoverParams.callback.onCompleted(true, false);
             return;
         }
 

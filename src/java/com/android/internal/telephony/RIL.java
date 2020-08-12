@@ -225,17 +225,17 @@ public class RIL extends BaseCommands implements CommandsInterface {
     Set<Integer> mDisabledOemHookServices = new HashSet();
 
     /* default work source which will blame phone process */
-    protected WorkSource mRILDefaultWorkSource;
+    private WorkSource mRILDefaultWorkSource;
 
     /* Worksource containing all applications causing wakelock to be held */
     private WorkSource mActiveWakelockWorkSource;
 
     /** Telephony metrics instance for logging metrics event */
-    protected TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
+    private TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
     /** Radio bug detector instance */
     private RadioBugDetector mRadioBugDetector = null;
 
-    protected boolean mIsMobileNetworkSupported;
+    boolean mIsMobileNetworkSupported;
     RadioResponse mRadioResponse;
     RadioIndication mRadioIndication;
     volatile IRadio mRadioProxy = null;
@@ -395,7 +395,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected void resetProxyAndRequestList() {
+    private void resetProxyAndRequestList() {
         mRadioProxy = null;
         mOemHookProxy = null;
 
@@ -657,12 +657,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
         RILRequest rr = RILRequest.obtain(request, result, workSource);
         addRequest(rr);
         return rr;
-    }
-
-    protected int obtainRequestSerial(int request, Message result, WorkSource workSource) {
-        RILRequest rr = RILRequest.obtain(request, result, workSource);
-        addRequest(rr);
-        return rr.mSerial;
     }
 
     private void handleRadioProxyExceptionForRR(RILRequest rr, String caller, Exception e) {
@@ -3002,7 +2996,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected void constructCdmaSendSmsRilRequest(CdmaSmsMessage msg, byte[] pdu) {
+    private void constructCdmaSendSmsRilRequest(CdmaSmsMessage msg, byte[] pdu) {
         int addrNbrOfDigits;
         int subaddrNbrOfDigits;
         int bearerDataLength;
@@ -3038,11 +3032,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                         + ex);
             }
         }
-    }
-
-    @Override
-    public void sendCdmaSms(byte[] pdu, Message result, boolean expectMore) {
-        sendCdmaSms(pdu, result);
     }
 
     @Override
@@ -3274,7 +3263,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
             CdmaSmsWriteArgs args = new CdmaSmsWriteArgs();
             args.status = status;
-            constructCdmaSendSmsRilRequest(args.message, IccUtils.hexStringToBytes(pdu));
+            constructCdmaSendSmsRilRequest(args.message, pdu.getBytes());
 
             try {
                 radioProxy.writeSmsToRuim(rr.mSerial, args);
@@ -4833,15 +4822,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return rr;
     }
 
-    protected Message getMessageFromRequest(Object request) {
-        RILRequest rr = (RILRequest)request;
-        Message result = null;
-        if (rr != null) {
-                result = rr.mResult;
-        }
-        return result;
-    }
-
     /**
      * This is a helper function to be called at the end of all RadioResponse callbacks.
      * It takes care of sending error response, logging, decrementing wakelock if needed, and
@@ -4872,11 +4852,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             }
             rr.release();
         }
-    }
-
-    protected void processResponseDone(Object request, RadioResponseInfo responseInfo, Object ret) {
-        RILRequest rr = (RILRequest)request;
-        processResponseDone(rr, responseInfo, ret);
     }
 
     /**
@@ -5695,8 +5670,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 return "RIL_UNSOL_KEEPALIVE_STATUS";
             case RIL_UNSOL_PHYSICAL_CHANNEL_CONFIG:
                 return "RIL_UNSOL_PHYSICAL_CHANNEL_CONFIG";
-            case RIL_UNSOL_EMERGENCY_NUMBER_LIST:
-                return "RIL_UNSOL_EMERGENCY_NUMBER_LIST";
             default:
                 return "<unknown response>";
         }
